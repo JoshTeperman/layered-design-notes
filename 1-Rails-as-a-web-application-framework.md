@@ -29,6 +29,8 @@ $ rackup -s webrick --builder 'run -> (env) { [200, {}, "hello world"] }'
 ```
 
 ### Rails on Rack
+
+#### 0) Entrypoint
 Entrypoint into a Rails application is in `config.ru`. You can start a rack-compatible application with `rackup` command, which will search for a `config.ru` file in the current directory. 
 
 ```
@@ -40,12 +42,37 @@ Rack's `run` commmand here means for requests to the web server, make the `App` 
 
 Here the `App` class, which defines a `call` class method to be rack-compatible, is passed to Rack which uses `rackup` internally to interface between incoming HTTP requests and the framework. Rack will now pass an `env` object representing incoming HTTP requests to `App` so that the application can process and respond to requests.
 
-#### Middleware
+#### 2) Middleware
 Middleware is a copmonent that wraps a core unit (function) execution and can inspect and modify input and output data without changing its interface. Middleware is usually chained, so eachone invokes the next one, and only the last one in the chain executes the core logic. 
 
 ![image](https://github.com/JoshTeperman/layered-design-notes/assets/36095443/dab622ae-d0a2-4eaf-a9dd-5b780afd395f)
 
 Rack allows you to extend basic request-handling funcionality by injecting middleware. Middleware intercepts HTTP requests to perform some additional, usually utilitarian logic - enhancing a Rack env object, adding additional response headers (eg X-Runtim or CORS-related), logging the request execution, performing security checks, etc. The middleware stack can be called the HTTP pre-/post-processing layer. It should treat the application as a black box and know nothing about its business logic. A Rack middleware should not enhance the application web interface, but act as a mediator between the outer world and the Rails application. 
 
-View the middleware stack with `bin/rails middleware` command. 
+View the default middleware stack with `bin/rails middleware` command: 
+
+```
+$bin/rails middleware
+use ActionDispatch::HostAuthorization
+use Rack::Sendfile
+use ActionDispatch::Static
+use ActionDispatch::Executor
+use ActionDispatch::ServerTiming
+use Rack::Runtime 
+use Rack::Head
+use Rack::ConditionalGet
+use Rack::ETag
+use Rack::TempfileReaper
+run MyProject::Application.routes
+```
+
+#### 3) Routes
+
+The final middleware called above runs rails routes, which is itself a Rack app `run` call with `routes` passed (an instance of `ActionDispatch::Routing::RouteSet`.
+The Rails routing application uses the `routes.rb` file to match the request with a particular resolver - a controller / action pair, or another Rack application. 
+
+#### 4) Controllers
+Abstraction layer that standardises the way the application processes inbound requests. Theoretically can process any kind of request because it's just an abstraction, but in practice tightly coupled to Rack/HTTP. Translates requests into business actions or operations and trigger UI updates (if application has a view layer)
+
+<img width="571" alt="image" src="https://github.com/JoshTeperman/layered-design-notes/assets/36095443/c11ae59e-c432-4886-b7c3-9fbccefae6c0">
 
